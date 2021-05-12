@@ -1,0 +1,31 @@
+#! /usr/bin/env python
+
+######################################
+### (2) ROGUE DHCP-MONITOR for LAN ###
+######################################
+# Checks for any Active-DHCP-Servers:	Identifies:
+#							- IPs
+#							- MACs
+########################################
+# (a) Sends DHCP-DISCOVER-Request Packet
+########################################
+
+from scapy.all import *
+
+# Disable Scapy's check for matching IPs due to the need for a broadcast request and response
+conf.checkIPaddr = False
+fam,hw = get_if_raw_hwaddr(conf.iface)
+# Construct DHCP-DISCOVER-Request Packet manually from scratch
+dhcp_discover = Ether(dst="ff:ff:ff:ff:ff:ff")/IP(src="0.0.0.0",dst="255.255.255.255")/UDP(sport=68,dport=67)/BOOTP(chaddr=hw)/DHCP(options=[("message-type","discover"),"end"])
+
+# Specify 'multi=True' to make scapy wait for more answer packets after initial Response Packet is received
+ans, unans = srp(dhcp_discover, multi=True)# Press CTRL-C after several secs
+# Responses will indicate presence of Active-DHCP-Servers on network
+
+########################################
+# (b) Analyzes Responses
+########################################
+ans.summary()
+
+# Only interested in MACs & IPs of Response Packets
+for p in ans: print p[1][Ether].src, p[1][IP].src
