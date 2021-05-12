@@ -1,0 +1,118 @@
+tcpflag: 
+-------
+[syn]												tcpdump "tcp[tcpflags] & (tcp-syn) != 0" > ~/Desktop/tcpdump_with_filter-tcp-syn.txt
+												#tcpdump 'tcp[13] & 2!=0'
+												#tcpdump 'tcp[tcpflags]==tcp-syn'
+
+[ack]												tcpdump "tcp[tcpflags] & (tcp-ack) != 0" > ~/Desktop/tcpdump_with_filter-tcp-ack.txt
+												#tcpdump 'tcp[13] & 16!=0'
+												#tcpdump 'tcp[tcpflags]==tcp-ack'
+
+[syn] | [ack]											tcpdump "tcp[tcpflags] & (tcp-syn|tcp-ack) != 0" > ~/Desktop/tcpdump_with_filter-tcp-syn_tcp-ack.txt
+												#tcpdump 'tcp[13]=18'
+
+[rst]												tcpdump "tcp[tcpflags] & (tcp-rst) != 0" > ~/Desktop/tcpdump_with_filter-tcp-rst.txt
+												#tcpdump 'tcp[13] & 4!=0'
+												#tcpdump 'tcp[tcpflags]==tcp-rst'
+
+[fin]												tcpdump "tcp[tcpflags] & (tcp-fin) != 0" > ~/Desktop/tcpdump_with_filter-tcp-fin.txt
+												#tcpdump 'tcp[13] & 1!=0'
+												#tcpdump 'tcp[tcpflags]==tcp-fin'
+
+[syn] | [ack]											tcpdump "tcp[tcpflags] & (tcp-syn|tcp-ack) != 0" > ~/Desktop/tcpdump_with_filter-tcp-rst_tcp-fin.txt
+												#tcpdump 'tcp[13]=18'
+
+[URG]												
+												#tcpdump 'tcp[13] & 32!=0'
+												#tcpdump 'tcp[tcpflags]==tcp-urg'
+
+[PSH]												
+												#tcpdump 'tcp[13] & 8!=0'
+												#tcpdump 'tcp[tcpflags]==tcp-psh'
+
+######################################################################################################################################################################################################
+######################################################################################################################################################################################################
+######################################################################################################################################################################################################
+
+# NMAP ICMP SCAN:
+#		1] Send ICMP echo request packet
+#						- Sends TCP[Flag=SYN] Packet on any TCP-Port
+#												IP-Header = 20bytes
+#												SRC.IP    = 192.168.20.100/24
+#												DST.IP    = 192.168.20.2/24
+#												Proto     = 01 = ICMP
+#												TYPE = 8
+#												CODE = 0
+#		2] Receive ICMP echo reply
+#						- Receive TCP[Flag=RST/ACK] from target’s Network
+												TYPE = 0
+												CODE = 0
+#		3] TCP[Flag=SYN] Packet
+#
+#		4] TCP[Flag=RST/ACK] Packet
+
+
+
+######################################################################################################################################################################################################
+######################################################################################################################################################################################################
+######################################################################################################################################################################################################
+
+tcpdump advanced options:
+
+	-x:	- Shows Packet-Contents in HEX && ASCII
+	-xx:	- Same as '-x'
+		- Also shows ETHERNET-Header
+	-l:	- Line-Readable Output
+					- For viewing as output is saved || Sending to other commands
+	-t:	- Human-Readable TIMESTAMP-Output
+	-tttt:	- Maximally Human-Readable TIMESTAMP-Output
+	-vvv:	- Verbose Output
+	-s:	- Define SNAPLENGTH(SIZE) of capture (in bytes)
+	-s0:	- Get all packets, regardless of size
+	-E:	- Decrypts IPSEC traffic, via provision of an Encryption-Key
+
+examples:
+	[1]:	Find all traffic from 192.168.20.100 going to any host on port 3389
+		tcpdump -nnvVvS src 192.168.20.100 && dst port 3389
+
+	[2]:	Find all traffic coming from 192.168.20.0 and going to 10.x || 172.16.x.x networks
+		tcpdump -nnvvvX src net 192.168.20.0/24 && dst net 172.16.0.0/16
+
+	[3]:	Find all traffic from a host that IS NOT SSH
+		tcpdump -vVv src mars and not dst port 22
+
+######################################################################################################################################################################################################
+######################################################################################################################################################################################################
+######################################################################################################################################################################################################
+
+
+# Find HTTP-User-Agents:
+tcpdump -vvAls0 | grep "User-Agent:"
+
+# Cleartext GET-Requests:
+tcpdump -vvAls0 | grep 'GET'
+
+# Find HTTP-HOST-Readers:
+tcpdump -vvAls0 | grep 'Host:'
+
+# Find HTTP-COOKIES:
+tcpdump -vvAls0 | grep 'Set-Cookie|Host:|Cookies:'
+
+# Find SSH-Connections:
+tcpdump 'tcp[(tcp[12]>>2):4] = 0x5353482D'
+
+# Find DNS-Traffic:
+tcpdump -vvAs0 port 53
+
+# Find FTP-Traffic:
+tcpdump -vvAs0 port ftp or ftp-data
+
+# Find NTP-Traffic:
+tcpdump -vvAs0 port 123
+
+# Find Cleartext Passwords:
+tcpdump port http or port ftp or port smtp or port imap or port pop3 or port telnet -lA | egrep -i -B5 'pass=|pwd=|log=|login=|user=|username=|pw=|passw=|passwd= |password=|pass:|user:|username:|password:|login:|pass |user ' 
+
+# Find EVIL-BIT:
+#		- Bit located in IP-Header never assigned by legit-programs/services/apps
+tcpdump 'ip[6] & 128 != 0'
