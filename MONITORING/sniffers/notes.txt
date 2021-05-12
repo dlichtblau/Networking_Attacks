@@ -1,0 +1,36 @@
+sniff(filter="",iface="any",prn=function,count=N)
+
+	filter	=	- specify [wireshark/tshark/tcpdump] filter
+				- blank value sniffs all packets on iface
+	iface	=	- tells the sniffer which interface to sniff
+	prn		=	- specifies a callback function to be called for every packet matching the filter
+				- callback function receives the packet object as its single parameter
+	count	=	- specifies how many packets to sniff
+	store	=	- when set to 0, ensures scapy doesn't keep packets in memory
+										- avoids RAM consumption for long-term sniffers
+				
+	To SNIFF:
+				() HTTP Packets:
+									- filter="tcp port 80"
+				() POP3 (port 110)
+									- sniff(filter="tcp port 110",prn=packet_callback,store=0)
+				() IMAP (port 143)
+									- sniff(filter="tcp port 143",prn=packet_callback,store=0)
+				() SMTP (port 25)
+									- sniff(filter="tcp port 25",prn=packet_callback,store=0)
+					TCP flags:
+							Unskilled	=	Urgent		(URG)
+																tcpdump 'tcp[13] & 32 != 0'
+				(6)			Attackers	=	Acknowledge	(ACK)
+																tcpdump 'tcp[13] & 16 != 0'
+							Pester		=	Push		(PSH)
+																tcpdump 'tcp[13] & 8 != 0'
+							Real		=	Reset		(RST)
+																tcpdump 'tcp[13] & 4 != 0'
+				(1)			Security	=	Synchronize	(SYN)
+																tcpdump 'tcp[13] & 2 != 0'
+				(2)			Folk 		=	Finish		(FIN)
+																tcpdump 'tcp[13] & 1 != 0'
+											SYNACK		(SYNACK)
+																tcpdump 'tcp[13] = 18'
+				
